@@ -60,7 +60,7 @@ def search_cars_by_keywords(query):
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1 дизель 2020')")
+    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1 бензин')")
 
 # Обработка обычных сообщений
 @dp.message_handler()
@@ -84,8 +84,8 @@ async def handle_query(message: types.Message):
         chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты автоассистент, помоги подобрать машину."},
-                {"role": "user", "content": user_query}
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно."},
+                {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
             ],
             temperature=0.7,
             max_tokens=300
@@ -94,7 +94,7 @@ async def handle_query(message: types.Message):
         await message.answer(reply)
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
-        await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой!")
+        await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
 
 # Запуск бота
 if __name__ == "__main__":
