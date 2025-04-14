@@ -6,9 +6,7 @@ import openai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
-import traceback
 
-# Загрузка переменных окружения
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
@@ -19,7 +17,6 @@ SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_SERVICE_ACCOUNT = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
 # Инициализация
-logging.info("Загрузка переменных окружения завершена.")
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher(bot)
 openai.api_key = OPENAI_API_KEY
@@ -29,21 +26,12 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 service_account_info = json.loads(GOOGLE_SERVICE_ACCOUNT)
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(credentials)
+sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Наличие1")
 
-try:
-    sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Наличие1")
-    logging.info("Успешно подключено к Google Sheets.")
-except Exception as e:
-    logging.error(f"Ошибка при подключении к Google Sheets: {e}")
-    exit(1)
-
-# Обработчик команд /start
 @dp.message_handler(commands=["start"])
 async def send_welcome(message: types.Message):
-    logging.info(f"Команда /start от {message.from_user.username}")
     await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: марку, модель, год, кузов, бюджет и т.д.")
 
-# Функция для разбора критериев из запроса
 def parse_criteria(text):
     criteria = {}
     words = text.lower().split()
@@ -61,7 +49,6 @@ def parse_criteria(text):
 
     return criteria
 
-# Функция для сопоставления машины с запросом
 def match_car(car, criteria):
     for key, value in criteria.items():
         if key not in car:
@@ -84,29 +71,27 @@ def match_car(car, criteria):
                 return False
     return True
 
-# Запрос к GPT для ответа на вопросы (с учетом нового интерфейса)
 async def ask_gpt(question):
     try:
-        response = openai.Completion.create(
+        response = openai.chat_completions.create(
             model="gpt-3.5-turbo",
-            prompt=question,
-            max_tokens=150
+            messages=[
+                {"role": "system", "content": "Ты автоэксперт, помогай людям с вопросами про покупку авто."},
+                {"role": "user", "content": question}
+            ]
         )
-        return response.choices[0].text.strip()
+        return response['choices'][0]['message']['content'].strip()
     except Exception as e:
         logging.error(f"Ошибка GPT: {e}")
         return "Произошла ошибка при обращении к ИИ."
 
-# Обработчик всех сообщений
 @dp.message_handler()
 async def handle_query(message: types.Message):
-    logging.info(f"Получен запрос от {message.from_user.username}: {message.text}")
     query = message.text
     criteria = parse_criteria(query)
     cars = sheet.get_all_records()
     matches = []
 
-    # Поиск совпадений в таблице
     for car in cars:
         if match_car(car, criteria):
             matches.append(car)
@@ -121,23 +106,13 @@ async def handle_query(message: types.Message):
                     types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
                 )
                 await message.reply(text, reply_markup=kb)
-                logging.info(f"Отправлено сообщение с машиной: {car.get('Марка', '—')} {car.get('Модель', '')}")
             except Exception as e:
                 logging.error(f"Ошибка при обработке машины: {car}\n{e}")
                 continue
     else:
-        # Если машины не найдены, вызываем GPT
         gpt_answer = await ask_gpt(query)
         await message.reply(f"🤖 {gpt_answer}")
-        logging.info(f"Отправлен ответ от GPT: {gpt_answer}")
 
-# Глобальный обработчик ошибок
-@dp.errors_handler()
-async def global_error_handler(update, exception):
-    logging.error(f"Ошибка: {exception}\n{traceback.format_exc()}")
-    return True
-
-# Запуск бота
 if __name__ == "__main__":
-    logging.info("Запуск бота...")
-    executor.start_polling(dp, skip_updates=False)
+    logging.info("Бот запущен...")
+    executor.start_polling(dp, skip_updates=True)
