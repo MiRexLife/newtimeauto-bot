@@ -86,7 +86,7 @@ async def handle_message(message: types.Message):
     # Запрос к GPT если авто не найдено
     try:
         logger.info(f"Запрос к GPT: {user_query}")
-        response = openai.chat.completions.create(
+        response = openai.chat_completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Ты автоассистент, помоги подобрать машину."},
@@ -95,7 +95,7 @@ async def handle_message(message: types.Message):
             temperature=0.7,
             max_tokens=300
         )
-        reply = response.choices[0].message.content.strip()
+        reply = response['choices'][0]['message']['content'].strip()
         logger.info(f"Ответ от GPT для запроса {user_query}: {reply}")
         await message.answer(reply)
     except Exception as e:
