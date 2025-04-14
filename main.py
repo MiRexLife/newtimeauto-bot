@@ -75,7 +75,13 @@ async def handle_query(message: types.Message):
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
             response += f"{car_info}\n\n"
-        await message.answer(response)
+        
+        # Кнопка "Подробнее", ведущая в чат с менеджером
+        reply_markup = types.InlineKeyboardMarkup()
+        button = types.InlineKeyboardButton(text="Подробнее", url="https://t.me/newtimeauto_sales")
+        reply_markup.add(button)
+
+        await message.answer(response, reply_markup=reply_markup)
         return
 
     # Если не нашли — пробуем GPT
@@ -84,7 +90,7 @@ async def handle_query(message: types.Message):
         chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может отпределиться, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может отпределиться, или хочет уже купить или забронировать, узнать подробности или детали, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
                 {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
             ],
             temperature=0.7,
