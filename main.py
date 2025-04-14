@@ -79,7 +79,7 @@ async def handle_query(message: types.Message):
             # Создание кнопки "Подробнее"
             query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}")
             # query_encoded = query_encoded.replace(" ", "%20")  # URL-кодирование
-            chat_url = f"https://t.me/newtimeauto_sales?start={query_encoded}"
+            chat_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=chat_url)
             )
