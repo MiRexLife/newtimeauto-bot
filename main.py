@@ -48,10 +48,10 @@ def search_cars_in_sheet(query):
         rows = sheet.get_all_records()
         logger.info(f"Загружено {len(rows)} строк из таблицы.")
         result = []
-        query_lower = query.lower()
+        query_words = query.lower().split()  # Разделяем запрос на ключевые слова
         for row in rows:
             car_info = " ".join(str(value).lower() for value in row.values())
-            if query_lower in car_info:
+            if all(word in car_info for word in query_words):  # Проверяем наличие всех ключевых слов
                 result.append(row)
                 if len(result) >= 3:
                     break
@@ -64,7 +64,7 @@ def search_cars_in_sheet(query):
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    await message.answer("Привет! Я помогу подобрать авто. Напиши марку или модель.")
+    await message.answer("Привет! Я помогу подобрать авто. Напиши марку, модель или другие параметры автомобиля.")
     logger.info(f"Получен запрос /start от {message.from_user.username}")
 
 # Обработка текстовых сообщений
@@ -86,16 +86,13 @@ async def handle_message(message: types.Message):
     # Запрос к GPT если авто не найдено
     try:
         logger.info(f"Запрос к GPT: {user_query}")
-        response = openai.completions.create(
+        response = openai.Completion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты автоассистент, помоги подобрать машину."},
-                {"role": "user", "content": user_query}
-            ],
+            prompt=user_query,
             temperature=0.7,
             max_tokens=300
         )
-        reply = response['choices'][0]['message']['content'].strip()
+        reply = response['choices'][0]['text'].strip()  # Получение текста ответа
         logger.info(f"Ответ от GPT для запроса {user_query}: {reply}")
         await message.answer(reply)
     except Exception as e:
