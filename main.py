@@ -42,7 +42,7 @@ def get_gpt_response(user_input):
 # Обработчик команды /start
 @dp.message_handler(commands=["start"])
 async def send_welcome(message: types.Message):
-    await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: бюджет, год, марку, кузов и т.д.")
+    await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: марку, кузов, год, бюджет и т.д.")
 
 # Функция для парсинга запроса пользователя
 def parse_criteria(text):
@@ -55,7 +55,7 @@ def parse_criteria(text):
                 criteria["Год"] = int(word)
             else:
                 criteria["Цена"] = int(word)
-        elif word in ["седан", "внедорожник", "хэтчбек", "купе"]:
+        elif word in ["седан", "внедорожник", "хэтчбек", "купе", "лифтбек", "спорткар", "электро"]:
             criteria["Кузов"] = word
         else:
             criteria["Марка"] = word.capitalize()
