@@ -26,11 +26,11 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 service_account_info = json.loads(GOOGLE_SERVICE_ACCOUNT)
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 client = gspread.authorize(credentials)
-sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Наличие")
+sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Наличие1")
 
 @dp.message_handler(commands=["start"])
 async def send_welcome(message: types.Message):
-    await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: марку, кузов, бюджет, год и т.д.")
+    await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: марку, модель, год, кузов, бюджет и т.д.")
 
 def parse_criteria(text):
     criteria = {}
@@ -100,7 +100,13 @@ async def handle_query(message: types.Message):
 
     if matches:
         for car in matches:
-            text = f"{car['Марка']} {car['Модель']} {car['Год']}\nЦена: {car['Цена']}₽\nЦвет: {car['Цвет']}"
+print(car)
+            try:
+    text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
+except Exception as e:
+    logging.error(f"Ошибка при форматировании авто: {e}")
+    continue
+
             kb = types.InlineKeyboardMarkup().add(
                 types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
             )
