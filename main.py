@@ -48,15 +48,23 @@ def search_cars_in_sheet(query):
         rows = sheet.get_all_records()
         logger.info(f"Загружено {len(rows)} строк из таблицы.")
         result = []
-        query_words = query.lower().split()  # Разделяем запрос на ключевые слова
+
+        # Преобразуем запрос пользователя в список ключевых слов
+        query_keywords = query.lower().split()
+
         for row in rows:
+            # Объединяем все значения строки в одну строку
             car_info = " ".join(str(value).lower() for value in row.values())
-            if all(word in car_info for word in query_words):  # Проверяем наличие всех ключевых слов
+
+            # Проверяем, содержатся ли ВСЕ ключевые слова в строке
+            if all(keyword in car_info for keyword in query_keywords):
                 result.append(row)
                 if len(result) >= 3:
                     break
+
         logger.info(f"Найдено {len(result)} совпадений.")
         return result
+
     except Exception as e:
         logger.error(f"Ошибка при поиске в таблице: {e}")
         return []
