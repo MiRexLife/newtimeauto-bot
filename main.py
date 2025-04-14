@@ -78,7 +78,7 @@ async def handle_query(message: types.Message):
         
         # Кнопка "Подробнее", ведущая в чат с менеджером
         reply_markup = types.InlineKeyboardMarkup()
-        button = types.InlineKeyboardButton(text="Подробнее", url="https://t.me/newtimeauto_sales")
+        button = types.InlineKeyboardButton(text="Подробнее", url="https://t.me/newtimeauto_sales?text=Здравствуйте! Интересуют подробности про {user_query}")
         reply_markup.add(button)
 
         await message.answer(response, reply_markup=reply_markup)
