@@ -6,7 +6,6 @@ import gspread
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from dotenv import load_dotenv
-import re
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -39,11 +38,6 @@ except Exception as e:
     logger.error(f"Ошибка подключения к Google Sheets: {e}")
     sheet = None
 
-# Функция для извлечения ключевых слов из запроса
-def extract_keywords(query):
-    # Убираем все лишние символы и оставляем только слова
-    return re.findall(r'\b\w+\b', query.lower())
-
 # Функция поиска авто в таблице
 def search_cars_in_sheet(query):
     if not sheet:
@@ -54,12 +48,10 @@ def search_cars_in_sheet(query):
         rows = sheet.get_all_records()
         logger.info(f"Загружено {len(rows)} строк из таблицы.")
         result = []
-        query_keywords = extract_keywords(query)
-
+        query_lower = query.lower()
         for row in rows:
             car_info = " ".join(str(value).lower() for value in row.values())
-            # Сравниваем ключевые слова запроса с информацией о каждом автомобиле
-            if all(keyword in car_info for keyword in query_keywords):
+            if query_lower in car_info:
                 result.append(row)
                 if len(result) >= 3:
                     break
@@ -94,7 +86,7 @@ async def handle_message(message: types.Message):
     # Запрос к GPT если авто не найдено
     try:
         logger.info(f"Запрос к GPT: {user_query}")
-        response = openai.ChatCompletion.create(
+        response = openai.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "Ты автоассистент, помоги подобрать машину."},
