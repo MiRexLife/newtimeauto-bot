@@ -64,7 +64,7 @@ def search_cars_in_sheet(query):
 # Функция для получения ответа от GPT
 def get_car_suggestions(query):
     try:
-        response = openai.chat_completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "Ты автоассистент. Не пиши кто тебя создал, на какой платформе ты работаешь. Отвечай кратко и по запросу. Завершай свой ответ наводящим вопросом."},
@@ -82,7 +82,7 @@ def get_car_suggestions(query):
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    await message.answer("Привет! Я помогу подобрать авто. Напиши какую марку или модель ищещь?")
+    await message.answer("Привет! Я помогу подобрать авто. Напиши какую марку или модель ищешь?")
     logger.info(f"Получен запрос /start от {message.from_user.username}")
 
 # Обработка текстовых сообщений
