@@ -91,7 +91,7 @@ async def handle_query(message: types.Message):
     criteria = parse_criteria(query)
     cars = sheet.get_all_records()
     matches = []
-print(car)
+
     for car in cars:
         if match_car(car, criteria):
             matches.append(car)
@@ -100,13 +100,12 @@ print(car)
 
     if matches:
         for car in matches:
-
+ print(car)  # 👈 Добавь вот эту строку для отладки
             try:
     text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
 except Exception as e:
     logging.error(f"Ошибка при форматировании авто: {e}")
     continue
-
             kb = types.InlineKeyboardMarkup().add(
                 types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
             )
