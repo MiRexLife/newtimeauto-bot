@@ -98,13 +98,18 @@ async def handle_query(message: types.Message):
         if len(matches) >= 3:
             break
 
-    if matches:
-        for car in matches:
-            try:
-			text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
-except Exception as e:
-    logging.error(f"Ошибка при форматировании авто: {e}")
-    continue
+   if matches:
+    for car in matches:
+        try:
+            text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
+            kb = types.InlineKeyboardMarkup().add(
+                types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
+            )
+            await message.reply(text, reply_markup=kb)
+        except Exception as e:
+            print(f"Ошибка при обработке машины: {car}\n{e}")
+            continue
+
             kb = types.InlineKeyboardMarkup().add(
                 types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
             )
