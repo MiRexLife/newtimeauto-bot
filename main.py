@@ -62,7 +62,7 @@ def parse_criteria(text):
 
     return criteria
 
-# Функция для поиска совпадений с автомобилем
+# Функция для поиска совпадений с автомобилем в таблице
 def match_car(car, criteria):
     for key, value in criteria.items():
         if key not in car:
@@ -99,7 +99,7 @@ async def ask_gpt(question):
         return response['choices'][0]['message']['content'].strip()
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
-        return "Произошла ошибка при обращении к ИИ."
+        return "ИИ пока не работает, попробуйте изменить запрос."
 
 # Основной обработчик сообщений
 @dp.message_handler()
@@ -110,6 +110,7 @@ async def handle_query(message: types.Message):
     cars = sheet.get_all_records()
     matches = []
 
+    # Сначала ищем в таблице
     for car in cars:
         if match_car(car, criteria):
             matches.append(car)
@@ -129,6 +130,7 @@ async def handle_query(message: types.Message):
                 logger.error(f"Ошибка при обработке машины: {car}\n{e}")
                 continue
     else:
+        # Если машины не найдены, обращаемся к GPT
         gpt_answer = await ask_gpt(query)
         logger.info(f"Ответ от GPT для запроса {query}: {gpt_answer}")
         await message.reply(f"🤖 {gpt_answer}")
