@@ -60,13 +60,13 @@ def search_cars_by_keywords(query):
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1 бензин')")
+    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1')")
 
 # Обработка обычных сообщений
 @dp.message_handler()
 async def handle_query(message: types.Message):
     user_query = message.text.strip()
-    logger.info(f"Запрос пользователя: {user_query}")
+    logger.info(f"Получен запрос от {message.from_user.username}: {user_query}")
 
     # Поиск в таблице
     matches = search_cars_by_keywords(user_query)
@@ -84,7 +84,7 @@ async def handle_query(message: types.Message):
         chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно."},
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может отпределиться, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
                 {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
             ],
             temperature=0.7,
