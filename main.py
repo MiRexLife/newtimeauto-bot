@@ -100,9 +100,7 @@ async def handle_query(message: types.Message):
 
     if matches:
         for car in matches:
-# print(car)  # 👈 Добавь вот эту строку для отладки
-            try:
-    text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
+            try: text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
 except Exception as e:
     logging.error(f"Ошибка при форматировании авто: {e}")
     continue
