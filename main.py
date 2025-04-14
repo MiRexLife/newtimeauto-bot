@@ -18,6 +18,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_SERVICE_ACCOUNT = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
+logger.info("Загрузка переменных окружения завершена.")
+
 # Инициализация Telegram-бота
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher(bot)
@@ -36,7 +38,7 @@ except Exception as e:
     logger.error(f"Ошибка подключения к Google Sheets: {e}")
     sheet = None
 
-# Функция поиска авто в таблице с учетом ключевых слов
+# Функция поиска авто в таблице
 def search_cars_in_sheet(query):
     if not sheet:
         logger.warning("Google Sheets не подключен.")
@@ -47,11 +49,9 @@ def search_cars_in_sheet(query):
         logger.info(f"Загружено {len(rows)} строк из таблицы.")
         result = []
         query_lower = query.lower()
-
-        # Ищем в каждом столбце таблицы совпадения с запросом
         for row in rows:
             car_info = " ".join(str(value).lower() for value in row.values())
-            if any(keyword in car_info for keyword in query_lower.split()):
+            if query_lower in car_info:
                 result.append(row)
                 if len(result) >= 3:
                     break
@@ -61,29 +61,10 @@ def search_cars_in_sheet(query):
         logger.error(f"Ошибка при поиске в таблице: {e}")
         return []
 
-# Функция для получения ответа от GPT
-def get_car_suggestions(query):
-    try:
-        # Используем правильный метод для работы с chat-based API
-        response = openai.ChatCompletion.create(
-            model="gpt-4",  # или gpt-3.5-turbo, если используете GPT-3.5
-            messages=[
-                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно."},
-                {"role": "user", "content": f"Помоги подобрать машину для запроса: {query}"}
-            ],
-            temperature=0.7,
-            max_tokens=150
-        )
-        reply = response['choices'][0]['message']['content'].strip()
-        return reply
-    except Exception as e:
-        logger.error(f"Ошибка GPT: {e}")
-        return "Извините, произошла ошибка при обработке запроса."
-
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    await message.answer("Привет! Я помогу подобрать авто. Какую ищешь марку или модель?")
+    await message.answer("Привет! Я помогу подобрать авто. Напиши марку или модель.")
     logger.info(f"Получен запрос /start от {message.from_user.username}")
 
 # Обработка текстовых сообщений
@@ -103,8 +84,25 @@ async def handle_message(message: types.Message):
         return
 
     # Запрос к GPT если авто не найдено
-    gpt_response = get_car_suggestions(user_query)
-    await message.answer(gpt_response)
+    try:
+        logger.info(f"Запрос к GPT: {user_query}")
+        messages = [
+            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно."},
+            {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
+        ]
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=300
+        )
+        reply = response.choices[0].message['content'].strip()
+        logger.info(f"Ответ от GPT для запроса {user_query}: {reply}")
+        await message.answer(reply)
+    except Exception as e:
+        logger.error(f"Ошибка GPT: {e}")
+        await message.answer("ИИ пока не работает, попробуйте изменить запрос.")
 
 # Запуск бота
 if __name__ == "__main__":
