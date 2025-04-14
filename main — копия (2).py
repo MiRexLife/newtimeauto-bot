@@ -1,13 +1,11 @@
 import os
 import json
 import logging
-import urllib.parse
 from dotenv import load_dotenv
 import gspread
 from openai import OpenAI
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -73,19 +71,20 @@ async def handle_query(message: types.Message):
     # Поиск в таблице
     matches = search_cars_by_keywords(user_query)
     if matches:
+        response = "Вот что я нашёл:\n\n"
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
+            response += f"{car_info}\n\n"
+        
+        # Кнопка "Подробнее", ведущая в чат с менеджером
 
-            # Создание кнопки "Подробнее"
-            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}")
-            # query_encoded = query_encoded.replace(" ", "%20")  # URL-кодирование
-            chat_url = f"https://t.me/newtimeauto_sales?start={query_encoded}"
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📩 Подробнее", url=chat_url)
-            )
 
-            await message.answer(car_info, reply_markup=keyboard)
-        return
+       ''' reply_markup = types.InlineKeyboardMarkup()
+        button = types.InlineKeyboardButton(text="Подробнее", url="https://t.me/newtimeauto_sales?text=Здравствуйте!")
+        reply_markup.add(button)
+
+        await message.answer(response, reply_markup=reply_markup)
+        return'''
 
     # Если не нашли — пробуем GPT
     try:
@@ -93,7 +92,7 @@ async def handle_query(message: types.Message):
         chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может определиться, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может отпределиться, или хочет уже купить или забронировать, узнать подробности или детали, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
                 {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
             ],
             temperature=0.7,
