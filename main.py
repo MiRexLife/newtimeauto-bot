@@ -6,7 +6,9 @@ import openai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from dotenv import load_dotenv
+import traceback
 
+# Загрузка переменных окружения
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
@@ -16,34 +18,33 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_SERVICE_ACCOUNT = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
-logging.info("Загрузка переменных окружения завершена.")
-
 # Инициализация
+logging.info("Загрузка переменных окружения завершена.")
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher(bot)
 openai.api_key = OPENAI_API_KEY
 
-logging.info("Бот и OpenAI инициализированы.")
-
 # Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+service_account_info = json.loads(GOOGLE_SERVICE_ACCOUNT)
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+client = gspread.authorize(credentials)
+
 try:
-    service_account_info = json.loads(GOOGLE_SERVICE_ACCOUNT)
-    credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
-    client = gspread.authorize(credentials)
     sheet = client.open_by_key(SPREADSHEET_ID).worksheet("Наличие1")
     logging.info("Успешно подключено к Google Sheets.")
 except Exception as e:
     logging.error(f"Ошибка при подключении к Google Sheets: {e}")
-    sheet = None  # чтобы не падал бот
+    exit(1)
 
+# Обработчик команд /start
 @dp.message_handler(commands=["start"])
 async def send_welcome(message: types.Message):
-    logging.info(f"Получена команда /start от {message.from_user.username}")
+    logging.info(f"Команда /start от {message.from_user.username}")
     await message.reply("Привет! Я помогу подобрать авто. Напиши, что ты ищешь: марку, модель, год, кузов, бюджет и т.д.")
 
+# Функция для разбора критериев из запроса
 def parse_criteria(text):
-    logging.info(f"Разбор пользовательского запроса: {text}")
     criteria = {}
     words = text.lower().split()
 
@@ -58,9 +59,9 @@ def parse_criteria(text):
         else:
             criteria["Марка"] = word.capitalize()
 
-    logging.info(f"Извлечённые критерии: {criteria}")
     return criteria
 
+# Функция для сопоставления машины с запросом
 def match_car(car, criteria):
     for key, value in criteria.items():
         if key not in car:
@@ -83,8 +84,8 @@ def match_car(car, criteria):
                 return False
     return True
 
+# Запрос к GPT для ответа на вопросы
 async def ask_gpt(question):
-    logging.info(f"Запрос к OpenAI: {question}")
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -93,32 +94,20 @@ async def ask_gpt(question):
                 {"role": "user", "content": question}
             ]
         )
-        reply = response.choices[0].message.content.strip()
-        logging.info(f"Ответ GPT: {reply}")
-        return reply
+        return response.choices[0].message.content.strip()
     except Exception as e:
         logging.error(f"Ошибка GPT: {e}")
         return "Произошла ошибка при обращении к ИИ."
 
+# Обработчик всех сообщений
 @dp.message_handler()
 async def handle_query(message: types.Message):
-    logging.info(f"Получено сообщение от пользователя {message.from_user.username}: {message.text}")
-    if not sheet:
-        await message.reply("Ошибка подключения к таблице. Попробуйте позже.")
-        return
-
+    logging.info(f"Получен запрос от {message.from_user.username}: {message.text}")
     query = message.text
     criteria = parse_criteria(query)
-
-    try:
-        cars = sheet.get_all_records()
-        logging.info(f"Загружено {len(cars)} автомобилей из таблицы.")
-    except Exception as e:
-        logging.error(f"Ошибка при чтении данных из Google Sheets: {e}")
-        await message.reply("Не удалось загрузить базу автомобилей.")
-        return
-
+    cars = sheet.get_all_records()
     matches = []
+
     for car in cars:
         if match_car(car, criteria):
             matches.append(car)
@@ -126,7 +115,6 @@ async def handle_query(message: types.Message):
             break
 
     if matches:
-        logging.info(f"Найдено {len(matches)} подходящих автомобилей.")
         for car in matches:
             try:
                 text = f"{car.get('Марка', '—')} {car.get('Модель', '')} {car.get('Год', '')}\nЦена: {car.get('Цена', '—')}₽\nЦвет: {car.get('Цвет', '—')}"
@@ -134,14 +122,22 @@ async def handle_query(message: types.Message):
                     types.InlineKeyboardButton("Забронировать", url="https://t.me/NewTimeAuto_bot")
                 )
                 await message.reply(text, reply_markup=kb)
+                logging.info(f"Отправлено сообщение с машиной: {car.get('Марка', '—')} {car.get('Модель', '')}")
             except Exception as e:
-                logging.error(f"Ошибка при отправке карточки авто: {e}")
-                logging.debug(f"Авто с ошибкой: {car}")
+                logging.error(f"Ошибка при обработке машины: {car}\n{e}")
                 continue
     else:
-        logging.info("Подходящие авто не найдены, обращаемся к GPT.")
         gpt_answer = await ask_gpt(query)
         await message.reply(f"🤖 {gpt_answer}")
+        logging.info(f"Отправлен ответ от GPT: {gpt_answer}")
 
+# Глобальный обработчик ошибок
+@dp.errors_handler()
+async def global_error_handler(update, exception):
+    logging.error(f"Ошибка: {exception}\n{traceback.format_exc()}")
+    return True
+
+# Запуск бота
 if __name__ == "__main__":
-    logging.info
+    logging.info("Запуск бота...")
+    executor.start_polling(dp, skip_updates=False)
