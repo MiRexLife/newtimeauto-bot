@@ -84,17 +84,15 @@ def match_car(car, criteria):
                 return False
     return True
 
-# Запрос к GPT для ответа на вопросы
+# Запрос к GPT для ответа на вопросы (с учетом нового интерфейса)
 async def ask_gpt(question):
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.Completion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты автоэксперт, помогай людям с вопросами про покупку авто."},
-                {"role": "user", "content": question}
-            ]
+            prompt=question,
+            max_tokens=150
         )
-        return response.choices[0].message.content.strip()
+        return response.choices[0].text.strip()
     except Exception as e:
         logging.error(f"Ошибка GPT: {e}")
         return "Произошла ошибка при обращении к ИИ."
@@ -108,6 +106,7 @@ async def handle_query(message: types.Message):
     cars = sheet.get_all_records()
     matches = []
 
+    # Поиск совпадений в таблице
     for car in cars:
         if match_car(car, criteria):
             matches.append(car)
@@ -127,6 +126,7 @@ async def handle_query(message: types.Message):
                 logging.error(f"Ошибка при обработке машины: {car}\n{e}")
                 continue
     else:
+        # Если машины не найдены, вызываем GPT
         gpt_answer = await ask_gpt(query)
         await message.reply(f"🤖 {gpt_answer}")
         logging.info(f"Отправлен ответ от GPT: {gpt_answer}")
