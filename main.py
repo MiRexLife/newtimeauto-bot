@@ -1,11 +1,12 @@
 import os
-import json
 import logging
-from dotenv import load_dotenv
+import json
+import openai
 import gspread
-from openai import OpenAI
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
+from dotenv import load_dotenv
+import re
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -18,12 +19,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
 GOOGLE_SERVICE_ACCOUNT = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
-# Инициализация OpenAI клиента
-client = OpenAI(api_key=OPENAI_API_KEY)
+logger.info("Загрузка переменных окружения завершена.")
 
 # Инициализация Telegram-бота
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher(bot)
+
+# Инициализация OpenAI
+openai.api_key = OPENAI_API_KEY
+logger.info("Бот и OpenAI инициализированы.")
 
 # Подключение к Google Sheets
 try:
@@ -35,68 +39,81 @@ except Exception as e:
     logger.error(f"Ошибка подключения к Google Sheets: {e}")
     sheet = None
 
-# Функция поиска авто по ключевым словам
-def search_cars_by_keywords(query):
+# Функция поиска авто в таблице с учетом ключевых слов
+def search_cars_in_sheet(query):
     if not sheet:
+        logger.warning("Google Sheets не подключен.")
         return []
 
     try:
-        keywords = query.lower().split()
+        # Загружаем все строки из таблицы
         rows = sheet.get_all_records()
-        matches = []
+        logger.info(f"Загружено {len(rows)} строк из таблицы.")
+        result = []
+
+        # Преобразуем запрос в список ключевых слов
+        query_lower = query.lower()
+        keywords = re.findall(r'\b\w+\b', query_lower)  # Извлекаем все слова из запроса
 
         for row in rows:
-            row_text = " ".join(str(value).lower() for value in row.values())
-            if all(word in row_text for word in keywords):
-                matches.append(row)
-                if len(matches) >= 3:
-                    break
+            # Преобразуем информацию о машине в строку
+            car_info = " ".join(str(value).lower() for value in row.values())
 
-        return matches
+            # Проверяем, содержатся ли все ключевые слова в информации о машине
+            if all(keyword in car_info for keyword in keywords):
+                result.append(row)
+                if len(result) >= 3:  # Ограничиваем количество результатов
+                    break
+        
+        logger.info(f"Найдено {len(result)} совпадений.")
+        return result
     except Exception as e:
         logger.error(f"Ошибка при поиске в таблице: {e}")
         return []
 
-# Обработка команды /start
-@dp.message_handler(commands=["start"])
-async def cmd_start(message: types.Message):
-    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1 дизель 2020')")
-
-# Обработка обычных сообщений
-@dp.message_handler()
-async def handle_query(message: types.Message):
-    user_query = message.text.strip()
-    logger.info(f"Запрос пользователя: {user_query}")
-
-    # Поиск в таблице
-    matches = search_cars_by_keywords(user_query)
-    if matches:
-        response = "Вот что я нашёл:\n\n"
-        for car in matches:
-            car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
-            response += f"{car_info}\n\n"
-        await message.answer(response)
-        return
-
-    # Если не нашли — пробуем GPT
+# Функция обработки запроса через GPT
+def get_gpt_response(query):
     try:
-        logger.info("Запрос к GPT...")
-        chat_completion = client.chat.completions.create(
+        logger.info(f"Запрос к GPT: {query}")
+        response = openai.Completion.create(
             model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты автоассистент, помоги подобрать машину."},
-                {"role": "user", "content": user_query}
-            ],
-            temperature=0.7,
-            max_tokens=300
+            prompt=f"Ты автоассистент. Не пиши кто тебя создал, на какой платформе ты работаешь, Отвечай коротко и по запросу. Помоги подобрать машину для запроса: {query}",
+            max_tokens=300,
+            temperature=0.7
         )
-        reply = chat_completion.choices[0].message.content.strip()
-        await message.answer(reply)
+        reply = response.choices[0].text.strip()
+        logger.info(f"Ответ от GPT для запроса {query}: {reply}")
+        return reply
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
-        await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой!")
+        return "Извините, возникла ошибка при обработке вашего запроса через ИИ."
+
+# Обработка команды /start
+@dp.message_handler(commands=["start"])
+async def start(message: types.Message):
+    await message.answer("Привет! Я помогу подобрать авто. Напиши марку или модель.")
+    logger.info(f"Получен запрос /start от {message.from_user.username}")
+
+# Обработка текстовых сообщений
+@dp.message_handler()
+async def handle_message(message: types.Message):
+    user_query = message.text.strip()
+    logger.info(f"Получен запрос от {message.from_user.username}: {user_query}")
+
+    # Поиск авто в таблице Google
+    cars = search_cars_in_sheet(user_query)
+    if cars:
+        response = "Вот что я нашёл:\n\n"
+        for car in cars:
+            car_text = "\n".join([f"{key}: {value}" for key, value in car.items()])
+            response += f"{car_text}\n\n"
+        await message.answer(response)
+    else:
+        # Если авто не найдено в таблице, используем GPT для ответа
+        gpt_response = get_gpt_response(user_query)
+        await message.answer(gpt_response)
 
 # Запуск бота
 if __name__ == "__main__":
-    logger.info("Бот запущен.")
+    logger.info("Бот запущен...")
     executor.start_polling(dp, skip_updates=True)
