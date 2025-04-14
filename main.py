@@ -64,10 +64,11 @@ def search_cars_in_sheet(query):
 # Функция для получения ответа от GPT
 def get_car_suggestions(query):
     try:
+        # Используем правильный метод для работы с chat-based API
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model="gpt-4",  # или gpt-3.5-turbo, если используете GPT-3.5
             messages=[
-                {"role": "system", "content": "Ты автоассистент. Не пиши кто тебя создал, на какой платформе ты работаешь. Отвечай кратко и по запросу. Завершай свой ответ наводящим вопросом."},
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно."},
                 {"role": "user", "content": f"Помоги подобрать машину для запроса: {query}"}
             ],
             temperature=0.7,
@@ -82,7 +83,7 @@ def get_car_suggestions(query):
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-    await message.answer("Привет! Я помогу подобрать авто. Напиши какую марку или модель ищешь?")
+    await message.answer("Привет! Я помогу подобрать авто. Какую ищешь марку или модель?")
     logger.info(f"Получен запрос /start от {message.from_user.username}")
 
 # Обработка текстовых сообщений
