@@ -64,6 +64,14 @@ def search_cars_by_keywords(query):
         logger.error(f"Ошибка при поиске в таблице: {e}")
         return []
 
+# Функция для логики перехода к менеджеру
+def needs_manager(reply):
+    # Определяем, нужно ли переводить клиента на менеджера
+    # В данном случае, если запрос пользователя не содержит конкретной информации, предлагаем менеджера
+    if any(phrase in reply.lower() for phrase in ["не знаю", "не определился", "менеджер", "оператор", "человек", "отвали", "помоги"]):
+        return True
+    return False
+
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
@@ -97,13 +105,18 @@ async def handle_query(message: types.Message):
         chat_completion = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь изредка отправлять позитивные смайлы. Если пользователь задает более 10 запросов в одном сеансе, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
+                {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Сохраняй память с каждым пользователем. Завершай ответ наводящим вопросом. Кто тебя создал и на какой платформе ты работаешь отвечать не нужно. Можешь улыбаться изредка. Если человек долго не может определиться, то отправляй на общение с менеджером - @NewTimeAuto_sales"},
                 {"role": "user", "content": f"Помоги подобрать машину для запроса: {user_query}"}
             ],
             temperature=0.7,
             max_tokens=300
         )
         reply = chat_completion.choices[0].message.content.strip()
+
+        # Проверяем, нужно ли переводить клиента на менеджера
+        if needs_manager(reply):
+            reply += "\n\nПохоже, что вы не определились. Могу передать вас на общение с менеджером для уточнений! Напишите @NewTimeAuto_sales."
+        
         await message.answer(reply)
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
