@@ -110,7 +110,7 @@ async def handle_query(message: types.Message):
         history.append({"role": "user", "content": user_query})
 
         messages = [
-            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру @NewTimeAuto_sales."}
+            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру прямо здесь в telegram."}
         ] + history
 
         chat_completion = client.chat.completions.create(
@@ -136,7 +136,7 @@ async def handle_query(message: types.Message):
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
             )
-            await message.answer("Если вам нужно помочь, свяжитесь с менеджером:", reply_markup=keyboard)
+            await message.answer(reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
