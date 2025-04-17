@@ -95,15 +95,15 @@ async def handle_query(message: types.Message):
 
             car_id = car.get("ID")  # ID теперь точно в формате "001", "002", и т.д.
             query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, ID: {car_id}")
-           # site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
-            miniapp_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
+            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
+           # miniapp_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
 
-           # keyboard = InlineKeyboardMarkup().add(
-           #     InlineKeyboardButton("📩 Подробнее", url=site_url)
-           # )
             keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📩 Подробнее", url=miniapp_url)
+                InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
+         #   keyboard = InlineKeyboardMarkup().add(
+         #       InlineKeyboardButton("📩 Подробнее", url=miniapp_url)
+         #   )
 
             await message.answer(car_info, reply_markup=keyboard)
         return
