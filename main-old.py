@@ -47,7 +47,7 @@ def search_cars_by_keywords(query):
         return []
 
     try:
-        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину"}
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину", "авто"}
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
@@ -89,11 +89,10 @@ async def handle_query(message: types.Message):
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
 
-            car_id = car.get("ID")
-            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={urllib.parse.quote(car_id)}"
-
+            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}")
+            chat_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
             keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📩 Подробнее", url=site_url)
+                InlineKeyboardButton("📩 Подробнее", url=chat_url)
             )
 
             await message.answer(car_info, reply_markup=keyboard)
@@ -112,7 +111,7 @@ async def handle_query(message: types.Message):
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.7,
-            max_tokens=500
+            max_tokens=300
         )
 
         reply = chat_completion.choices[0].message.content.strip()
@@ -122,7 +121,7 @@ async def handle_query(message: types.Message):
         await message.answer(reply)
 
         if needs_manager(reply):
-            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто. Запрос: {user_query}")
+            query_encoded = urllib.parse.quote("Здравствуйте, хочу поговорить о подборе авто")
             manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
@@ -137,3 +136,4 @@ async def handle_query(message: types.Message):
 if __name__ == "__main__":
     logger.info("Бот запущен.")
     executor.start_polling(dp, skip_updates=True)
+    
