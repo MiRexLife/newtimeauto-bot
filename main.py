@@ -135,7 +135,7 @@ async def handle_query(message: types.Message):
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
             car_id = car.get("ID")
-            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
+            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
