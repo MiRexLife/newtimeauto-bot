@@ -47,17 +47,21 @@ def search_cars_by_keywords(query):
         return []
 
     try:
-        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину", "авто"}
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать"}
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
-        rows = sheet.get_all_records()
+        values = sheet.get_all_values()
+        headers = values[0]
+        rows = values[1:]
+
         matches = []
 
         for row in rows:
-            row_text = " ".join(str(value).lower() for value in row.values())
+            row_dict = dict(zip(headers, row))
+            row_text = " ".join(value.lower() for value in row_dict.values())
             if all(word in row_text for word in keywords):
-                matches.append(row)
+                matches.append(row_dict)
                 if len(matches) >= 3:
                     break
 
@@ -89,8 +93,8 @@ async def handle_query(message: types.Message):
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
 
-            car_id = str(car.get("ID"))
-            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, {car_id}")
+            car_id = car.get("ID")  # ID теперь точно в формате "001", "002", и т.д.
+            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, ID: {car_id}")
             site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
 
             keyboard = InlineKeyboardMarkup().add(
@@ -100,7 +104,7 @@ async def handle_query(message: types.Message):
             await message.answer(car_info, reply_markup=keyboard)
         return
 
-    # Если не нашли — GPT + история
+    # Если не нашли — пробуем GPT с историей
     try:
         history = chat_histories.get(user_id, [])
         history.append({"role": "user", "content": user_query})
@@ -118,27 +122,18 @@ async def handle_query(message: types.Message):
 
         reply = chat_completion.choices[0].message.content.strip()
         history.append({"role": "assistant", "content": reply})
-        chat_histories[user_id] = history[-10:]  # храним последние 10 сообщений
+        chat_histories[user_id] = history[-10:]
 
         await message.answer(reply)
 
-        # Если нужно перевести к менеджеру
         if needs_manager(reply):
-            user_history_text = "\n".join(
-                msg["content"] for msg in chat_histories[user_id] if msg["role"] == "user"
-            )
-            manager_message = f"Здравствуйте, хочу поговорить о подборе авто.\nИстория:\n{user_history_text}"
-            query_encoded = urllib.parse.quote(manager_message)
+            full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
+            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
             manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
             )
-
             await message.answer(reply_markup=keyboard)
-
-            # Очистка истории после перевода
-            chat_histories[user_id] = []
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
