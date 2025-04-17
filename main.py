@@ -172,7 +172,7 @@ async def handle_query(message: types.Message):
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
             )
-            await message.answer(reply_markup=keyboard)
+            await message.answer("\u200B", reply_markup=keyboard)  # Unicode zero-width space
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
