@@ -47,21 +47,17 @@ def search_cars_by_keywords(query):
         return []
 
     try:
-        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать"}
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину", "авто"}
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
-        values = sheet.get_all_values()
-        headers = values[0]
-        rows = values[1:]
-
+        rows = sheet.get_all_records()
         matches = []
 
         for row in rows:
-            row_dict = dict(zip(headers, row))
-            row_text = " ".join(value.lower() for value in row_dict.values())
+            row_text = " ".join(str(value).lower() for value in row.values())
             if all(word in row_text for word in keywords):
-                matches.append(row_dict)
+                matches.append(row)
                 if len(matches) >= 3:
                     break
 
@@ -104,39 +100,39 @@ async def handle_query(message: types.Message):
             await message.answer(car_info, reply_markup=keyboard)
         return
 
-# Если не нашли — пробуем GPT с историей
-try:
-    history = chat_histories.get(user_id, [])
-    history.append({"role": "user", "content": user_query})
+    # Если не нашли — пробуем GPT с историей
+    try:
+        history = chat_histories.get(user_id, [])
+        history.append({"role": "user", "content": user_query})
 
-    messages = [
-        {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру @NewTimeAuto_sales."}
-    ] + history
+        messages = [
+            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру @NewTimeAuto_sales."}
+        ] + history
 
-    chat_completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        temperature=0.7,
-        max_tokens=300
-    )
-
-    reply = chat_completion.choices[0].message.content.strip()
-    history.append({"role": "assistant", "content": reply})
-    chat_histories[user_id] = history[-10:]
-
-    # Отправляем ответ от ИИ
-    await message.answer(reply)
-
-    if needs_manager(reply):
-        full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
-        query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
-        manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-
-        # Убедитесь, что передаете text в message.answer() здесь
-        keyboard = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("Связаться с менеджером", url=manager_url)
+        chat_completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=300
         )
-        await message.answer("Если вам нужно помочь, свяжитесь с менеджером:", reply_markup=keyboard)
+
+        reply = chat_completion.choices[0].message.content.strip()
+        history.append({"role": "assistant", "content": reply})
+        chat_histories[user_id] = history[-10:]  # Храним последние 10 сообщений
+
+        # Отправляем ответ от ИИ
+        await message.answer(reply)
+
+        if needs_manager(reply):
+            full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
+            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
+            manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
+
+            # Убедитесь, что передаете text в message.answer() здесь
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Связаться с менеджером", url=manager_url)
+            )
+            await message.answer("Если вам нужно помочь, свяжитесь с менеджером:", reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
