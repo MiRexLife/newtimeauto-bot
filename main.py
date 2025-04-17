@@ -108,7 +108,9 @@ async def cmd_start(message: types.Message):
         else:
             await message.answer("Автомобиль с таким ID не найден 😕")
     else:
-        await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1')")
+        await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1'), или сразу переходи в Каталог.")
+        katalog = f"https://t.me/newtimeauto_bot/app"
+        InlineKeyboardButton("🚘 Каталог", url=katalog)
 
 # Обработка команды /help
 @dp.message_handler(commands=["help"])
