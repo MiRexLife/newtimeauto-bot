@@ -1,4 +1,74 @@
-# ... (всё как раньше: импорты, переменные, инициализация Telegram, Google Sheets и OpenAI) ...
+import os
+import json
+import logging
+import urllib.parse
+import re
+from dotenv import load_dotenv
+import gspread
+from openai import OpenAI
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils import executor
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Загрузка переменных окружения
+load_dotenv()
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")
+GOOGLE_SERVICE_ACCOUNT = os.getenv("GOOGLE_SERVICE_ACCOUNT")
+
+# Инициализация OpenAI клиента
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+# Инициализация Telegram-бота
+bot = Bot(token=TELEGRAM_TOKEN)
+dp = Dispatcher(bot)  # Объект dp теперь инициализируется после создания bot
+
+# Подключение к Google Sheets
+try:
+    credentials = json.loads(GOOGLE_SERVICE_ACCOUNT)
+    gc = gspread.service_account_from_dict(credentials)
+    sheet = gc.open_by_key(SPREADSHEET_ID).worksheet("Наличие")
+    logger.info("Успешно подключено к Google Sheets.")
+except Exception as e:
+    logger.error(f"Ошибка подключения к Google Sheets: {e}")
+    sheet = None
+
+# Простая память для ИИ (на сессию)
+chat_histories = {}
+
+# Функция поиска авто по ключевым словам
+def search_cars_by_keywords(query):
+    if not sheet:
+        return []
+
+    try:
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать"}
+        query_words = re.findall(r'\w+', query.lower())
+        keywords = [word for word in query_words if word not in stop_words]
+
+        values = sheet.get_all_values()
+        headers = values[0]
+        rows = values[1:]
+
+        matches = []
+
+        for row in rows:
+            row_dict = dict(zip(headers, row))
+            row_text = " ".join(value.lower() for value in row_dict.values())
+            if all(word in row_text for word in keywords):
+                matches.append(row_dict)
+                if len(matches) >= 3:
+                    break
+
+        return matches
+    except Exception as e:
+        logger.error(f"Ошибка при поиске в таблице: {e}")
+        return []
 
 # Функция: получить авто по ID
 def get_car_by_id(car_id):
@@ -15,6 +85,11 @@ def get_car_by_id(car_id):
     except Exception as e:
         logger.error(f"Ошибка при поиске авто по ID: {e}")
         return None
+
+# Проверка на необходимость перевода к менеджеру
+def needs_manager(reply):
+    phrases = ["не знаю", "не определился", "менеджер", "оператор", "человек", "отвали", "помоги"]
+    return any(phrase in reply.lower() for phrase in phrases)
 
 # Обработка команды /start
 @dp.message_handler(commands=["start"])
@@ -41,13 +116,13 @@ async def cmd_help(message: types.Message):
     await message.answer(
         "👋 Этот ассистент поможет подобрать автомобиль из наличия.\n"
         "Просто напиши, какую машину ищешь, например:\n"
-        "`BMW X1 бензин`\n\n"
+        "`Kia Sportage 2022`\n\n"
         "Если не знаешь точно — ассистент задаст уточняющие вопросы.\n"
-        "Для связи с менеджером будет кнопка.\n\n",
+        "Для связи с менеджером будет кнопка.",
         parse_mode="Markdown"
     )
 
-# Обработка обычных сообщений (как было)
+# Обработка обычных сообщений
 @dp.message_handler()
 async def handle_query(message: types.Message):
     user_id = message.from_user.id
