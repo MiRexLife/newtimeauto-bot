@@ -100,7 +100,7 @@ async def handle_query(message: types.Message):
             await message.answer(car_info, reply_markup=keyboard)
         return
 
-    # Если не нашли — пробуем GPT с историей
+    # Если не нашли — GPT + история
     try:
         history = chat_histories.get(user_id, [])
         history.append({"role": "user", "content": user_query})
@@ -118,17 +118,27 @@ async def handle_query(message: types.Message):
 
         reply = chat_completion.choices[0].message.content.strip()
         history.append({"role": "assistant", "content": reply})
-        chat_histories[user_id] = history[-10:]  # Храним последние 10 сообщений
+        chat_histories[user_id] = history[-10:]  # храним последние 10 сообщений
 
         await message.answer(reply)
 
+        # Если нужно перевести к менеджеру
         if needs_manager(reply):
-    query_encoded = urllib.parse.quote("Здравствуйте, хочу поговорить о подборе авто")
-    manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-    keyboard = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("Связаться с менеджером", url=manager_url)
-    )
-    await message.answer(reply_markup=keyboard)
+            user_history_text = "\n".join(
+                msg["content"] for msg in chat_histories[user_id] if msg["role"] == "user"
+            )
+            manager_message = f"Здравствуйте, хочу поговорить о подборе авто.\nИстория:\n{user_history_text}"
+            query_encoded = urllib.parse.quote(manager_message)
+            manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
+
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("Связаться с менеджером", url=manager_url)
+            )
+
+            await message.answer(reply_markup=keyboard)
+
+            # Очистка истории после перевода
+            chat_histories[user_id] = []
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
@@ -138,4 +148,3 @@ async def handle_query(message: types.Message):
 if __name__ == "__main__":
     logger.info("Бот запущен.")
     executor.start_polling(dp, skip_updates=True)
-    
