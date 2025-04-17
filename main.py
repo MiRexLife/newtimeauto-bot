@@ -100,7 +100,7 @@ async def cmd_start(message: types.Message):
         car = get_car_by_id(car_id)
         if car:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
-            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
+            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
