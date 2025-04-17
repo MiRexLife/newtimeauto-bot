@@ -47,7 +47,7 @@ def search_cars_by_keywords(query):
         return []
 
     try:
-        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину", "авто"}
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину"}
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
@@ -90,8 +90,7 @@ async def handle_query(message: types.Message):
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
 
             car_id = car.get("ID")
-            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, {car_id}")
-            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
+            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={urllib.parse.quote(car_id)}"
 
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
@@ -113,7 +112,7 @@ async def handle_query(message: types.Message):
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.7,
-            max_tokens=300
+            max_tokens=500
         )
 
         reply = chat_completion.choices[0].message.content.strip()
@@ -123,7 +122,7 @@ async def handle_query(message: types.Message):
         await message.answer(reply)
 
         if needs_manager(reply):
-            query_encoded = urllib.parse.quote("Здравствуйте, хочу поговорить о подборе авто")
+            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто: {user_query}")
             manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
@@ -138,4 +137,3 @@ async def handle_query(message: types.Message):
 if __name__ == "__main__":
     logger.info("Бот запущен.")
     executor.start_polling(dp, skip_updates=True)
-    
