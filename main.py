@@ -51,13 +51,17 @@ def search_cars_by_keywords(query):
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
-        rows = sheet.get_all_records()
+        values = sheet.get_all_values()
+        headers = values[0]
+        rows = values[1:]
+
         matches = []
 
         for row in rows:
-            row_text = " ".join(str(value).lower() for value in row.values())
+            row_dict = dict(zip(headers, row))
+            row_text = " ".join(value.lower() for value in row_dict.values())
             if all(word in row_text for word in keywords):
-                matches.append(row)
+                matches.append(row_dict)
                 if len(matches) >= 3:
                     break
 
