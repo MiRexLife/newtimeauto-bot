@@ -105,35 +105,43 @@ async def handle_query(message: types.Message):
         return
 
     # Если не нашли — пробуем GPT с историей
-    try:
-        history = chat_histories.get(user_id, [])
-        history.append({"role": "user", "content": user_query})
+try:
+    history = chat_histories.get(user_id, [])
+    history.append({"role": "user", "content": user_query})
 
-        messages = [
-            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру @NewTimeAuto_sales."}
-        ] + history
+    messages = [
+        {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру @NewTimeAuto_sales."}
+    ] + history
 
-        chat_completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            temperature=0.7,
-            max_tokens=300
+    chat_completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        temperature=0.7,
+        max_tokens=300
+    )
+
+    reply = chat_completion.choices[0].message.content.strip()
+    history.append({"role": "assistant", "content": reply})
+    chat_histories[user_id] = history[-10:]
+
+    # Отправляем ответ от ИИ
+    await message.answer(reply)
+
+    if needs_manager(reply):
+        full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
+        query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
+        manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
+
+        # Убедитесь, что передаете text в message.answer() здесь
+        keyboard = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("Связаться с менеджером", url=manager_url)
         )
+        await message.answer("Если вам нужно помочь, свяжитесь с менеджером:", reply_markup=keyboard)
 
-        reply = chat_completion.choices[0].message.content.strip()
-        history.append({"role": "assistant", "content": reply})
-        chat_histories[user_id] = history[-10:]
+except Exception as e:
+    logger.error(f"Ошибка GPT: {e}")
+    await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
 
-        await message.answer(reply)
-
-        if needs_manager(reply):
-            full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
-            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
-            manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("Связаться с менеджером", url=manager_url)
-            )
-            await message.answer(reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
