@@ -104,7 +104,7 @@ async def handle_query(message: types.Message):
             await message.answer(car_info, reply_markup=keyboard)
         return
 
-    # Если не нашли — пробуем GPT с историей
+# Если не нашли — пробуем GPT с историей
 try:
     history = chat_histories.get(user_id, [])
     history.append({"role": "user", "content": user_query})
@@ -137,11 +137,6 @@ try:
             InlineKeyboardButton("Связаться с менеджером", url=manager_url)
         )
         await message.answer("Если вам нужно помочь, свяжитесь с менеджером:", reply_markup=keyboard)
-
-except Exception as e:
-    logger.error(f"Ошибка GPT: {e}")
-    await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
-
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
