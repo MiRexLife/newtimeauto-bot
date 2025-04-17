@@ -89,7 +89,7 @@ async def handle_query(message: types.Message):
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
 
-            car_id = car.get("ID")
+            car_id = str(car.get("ID"))
             query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, {car_id}")
             site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
 
@@ -123,12 +123,12 @@ async def handle_query(message: types.Message):
         await message.answer(reply)
 
         if needs_manager(reply):
-            query_encoded = urllib.parse.quote("Здравствуйте, хочу поговорить о подборе авто")
-            manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("Связаться с менеджером", url=manager_url)
-            )
-            await message.answer("Похоже, вам лучше пообщаться с менеджером:", reply_markup=keyboard)
+    query_encoded = urllib.parse.quote("Здравствуйте, хочу поговорить о подборе авто")
+    manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
+    keyboard = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("Связаться с менеджером", url=manager_url)
+    )
+    await message.answer(reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
