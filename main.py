@@ -47,7 +47,7 @@ def search_cars_by_keywords(query):
         return []
 
     try:
-        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать", "машину", "авто"}
+        stop_words = {"ищу", "хочу", "нужен", "нужна", "нужно", "подобрать"}
         query_words = re.findall(r'\w+', query.lower())
         keywords = [word for word in query_words if word not in stop_words]
 
