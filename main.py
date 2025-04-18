@@ -191,12 +191,11 @@ async def handle_query(message: types.Message):
         logger.error(f"Ошибка GPT: {e}")
         await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
 
-# Удаление Webhook перед запуском polling
-async def on_startup(dp):
+# Удаление Webhook и запуск polling
+async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    logger.info("Webhook отключён, polling запущен.")
+    await dp.start_polling()
 
-# Запуск
 if __name__ == "__main__":
     logger.info("Бот запускается...")
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    asyncio.run(main())
