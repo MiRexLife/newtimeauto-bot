@@ -185,7 +185,7 @@ async def handle_query(message: types.Message):
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
             )
-            await message.answer("\u200B", reply_markup=keyboard)
+            await message.answer("Для перехода нажми на кнопку", reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
