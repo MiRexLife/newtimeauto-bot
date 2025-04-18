@@ -3,6 +3,7 @@ import json
 import logging
 import urllib.parse
 import re
+import asyncio
 from dotenv import load_dotenv
 import gspread
 from openai import OpenAI
@@ -93,8 +94,9 @@ def needs_manager(reply):
 # /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    if message.get_args().startswith("id_"):
-        car_id = message.get_args().replace("id_", "")
+    args = message.get_args() or ""
+    if args.startswith("id_"):
+        car_id = args.replace("id_", "")
         car = get_car_by_id(car_id)
         if car:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
@@ -134,7 +136,12 @@ async def cmd_help(message: types.Message):
 async def handle_query(message: types.Message):
     user_id = message.from_user.id
     user_query = message.text.strip()
-    logger.info(f"Получен запрос от {message.from_user.username}: {user_query}")
+
+    if not user_query:
+        await message.answer("Пожалуйста, напишите что-нибудь.")
+        return
+
+    logger.info(f"Запрос от {message.from_user.username} (ID: {user_id}): {user_query}")
 
     matches = search_cars_by_keywords(user_query)
     if matches:
@@ -184,7 +191,12 @@ async def handle_query(message: types.Message):
         logger.error(f"Ошибка GPT: {e}")
         await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
 
+# Удаление Webhook перед запуском polling
+async def on_startup(dp):
+    await bot.delete_webhook(drop_pending_updates=True)
+    logger.info("Webhook отключён, polling запущен.")
+
 # Запуск
 if __name__ == "__main__":
-    logger.info("Бот запущен.")
-    executor.start_polling(dp, skip_updates=True)
+    logger.info("Бот запускается...")
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
