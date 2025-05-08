@@ -3,6 +3,7 @@ import json
 import logging
 import urllib.parse
 import re
+import asyncio
 from dotenv import load_dotenv
 import gspread
 from openai import OpenAI
@@ -38,10 +39,10 @@ except Exception as e:
     logger.error(f"Ошибка подключения к Google Sheets: {e}")
     sheet = None
 
-# Простая память для ИИ (на сессию)
+# Память для ИИ
 chat_histories = {}
 
-# Функция поиска авто по ключевым словам
+# Поиск авто по ключевым словам
 def search_cars_by_keywords(query):
     if not sheet:
         return []
@@ -56,7 +57,6 @@ def search_cars_by_keywords(query):
         rows = values[1:]
 
         matches = []
-
         for row in rows:
             row_dict = dict(zip(headers, row))
             row_text = " ".join(value.lower() for value in row_dict.values())
@@ -70,51 +70,98 @@ def search_cars_by_keywords(query):
         logger.error(f"Ошибка при поиске в таблице: {e}")
         return []
 
-# Проверка на необходимость перевода к менеджеру
+# Получение авто по ID
+def get_car_by_id(car_id):
+    try:
+        values = sheet.get_all_values()
+        headers = values[0]
+        rows = values[1:]
+
+        for row in rows:
+            row_dict = dict(zip(headers, row))
+            if row_dict.get("ID") == car_id:
+                return row_dict
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка при поиске авто по ID: {e}")
+        return None
+
+# Нужно ли подключать менеджера
 def needs_manager(reply):
     phrases = ["не знаю", "не определился", "менеджер", "оператор", "человек", "отвали", "помоги"]
     return any(phrase in reply.lower() for phrase in phrases)
 
-# Обработка команды /start
+# /start
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
-    await message.answer("Привет! Напиши, какую машину ты ищешь (например: 'BMW X1')")
+    args = message.get_args() or ""
+    if args.startswith("id_"):
+        car_id = args.replace("id_", "")
+        car = get_car_by_id(car_id)
+        if car:
+            car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
+            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
+            keyboard = InlineKeyboardMarkup().add(
+                InlineKeyboardButton("📩 Подробнее", url=site_url)
+            )
+            await message.answer(f"Информация по выбранному авто:\n\n{car_info}", reply_markup=keyboard)
+        else:
+            await message.answer("Автомобиль с таким ID не найден 😕")
+    else:
+        catalog_url = f"https://t.me/newtimeauto_bot/app"
+        keyboard = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("🚘 Открыть каталог", url=catalog_url)
+        )
+        await message.answer(
+            "👋 Привет! Я помогу подобрать авто из наличия, а также на заказ. Напиши, что интересует, например:\n*BMW X1*\n\n"
+            "Или сразу открой каталог по кнопке ниже.\n\n"
+            "Для связи со специалистом отправь слово *менеджер*.",
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
 
-# Обработка обычных сообщений
+# /help
+@dp.message_handler(commands=["help"])
+async def cmd_help(message: types.Message):
+    await message.answer(
+        "👋 Этот ассистент поможет подобрать автомобиль из наличия.\n"
+        "Просто напиши, какую машину ищешь, например:\n"
+        "`Kia Sportage Корея`\n\n"
+        "Если не знаешь точно — ассистент задаст уточняющие вопросы.\n"
+        "Для связи с менеджером будет кнопка.",
+        parse_mode="Markdown"
+    )
+
+# Обычные сообщения
 @dp.message_handler()
 async def handle_query(message: types.Message):
     user_id = message.from_user.id
     user_query = message.text.strip()
-    logger.info(f"Получен запрос от {message.from_user.username}: {user_query}")
 
-    # Поиск в таблице
+    if not user_query:
+        await message.answer("Пожалуйста, напишите что-нибудь.")
+        return
+
+    logger.info(f"Запрос от {message.from_user.username} (ID: {user_id}): {user_query}")
+
     matches = search_cars_by_keywords(user_query)
     if matches:
         for car in matches:
             car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
-
-            car_id = car.get("ID")  # ID теперь точно в формате "001", "002", и т.д.
-            query_encoded = urllib.parse.quote(f"Здравствуйте! Интересует: {user_query}, ID: {car_id}")
-            site_url = f"https://mirexlife.github.io/newtimeauto-site/car.html?id={car_id}"
-           # miniapp_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
-
+            car_id = car.get("ID")
+            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
-         #   keyboard = InlineKeyboardMarkup().add(
-         #       InlineKeyboardButton("📩 Подробнее", url=miniapp_url)
-         #   )
-
             await message.answer(car_info, reply_markup=keyboard)
         return
 
-    # Если не нашли — пробуем GPT с историей
     try:
         history = chat_histories.get(user_id, [])
         history.append({"role": "user", "content": user_query})
 
         messages = [
-            {"role": "system", "content": "Ты автоассистент. Отвечай кратко и по запросу. Завершай ответ наводящим вопросом. Если клиент не может определиться, отправь к менеджеру прямо здесь в telegram."}
+            {"role": "system", "content": "Ты — виртуальный ассистент автосалона NewTime Auto. Помоги пользователю подобрать автомобиль из доступных в таблице. Задавай уточняющие вопросы, чтобы понять, какой автомобиль ему подходит. Если уже есть подходящие варианты — покажи 2–3 из них. Если пользователь пишет не по теме — вежливо переведи диалог к подбору авто. Кто тебя создал — отвечать не нужно, просто помогай клиенту подобрать авто по его запросу. Можешь изредка использовать позитивные эмодзи. Если пользователь долго сомневается, пишет что не может выбрать, или не называет критериев — предложи обратиться к менеджеру в Telegram. Добавь кнопку внизу сообщения."}
         ] + history
 
         chat_completion = client.chat.completions.create(
@@ -126,27 +173,30 @@ async def handle_query(message: types.Message):
 
         reply = chat_completion.choices[0].message.content.strip()
         history.append({"role": "assistant", "content": reply})
-        chat_histories[user_id] = history[-10:]  # Храним последние 10 сообщений
+        chat_histories[user_id] = history[-10:]
 
-        # Отправляем ответ от ИИ
         await message.answer(reply)
 
         if needs_manager(reply):
             full_history = "\n".join([m["content"] for m in history if m["role"] == "user"])
-            query_encoded = urllib.parse.quote(f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}")
+            query_encoded = urllib.parse.quote(
+                f"Здравствуйте, хочу поговорить о подборе авто.\n\nИстория:\n{full_history}"
+            )
             manager_url = f"https://t.me/newtimeauto_sales?text={query_encoded}"
-
-            # Убедитесь, что передаете text в message.answer() здесь
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("Связаться с менеджером", url=manager_url)
             )
-            await message.answer(reply_markup=keyboard)
+            await message.answer("Для перехода нажми на кнопку", reply_markup=keyboard)
 
     except Exception as e:
         logger.error(f"Ошибка GPT: {e}")
         await message.answer("ИИ пока не работает, но вы можете уточнить запрос или задать другой.")
 
-# Запуск бота
+# Удаление Webhook и запуск polling
+async def main():
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling()
+
 if __name__ == "__main__":
-    logger.info("Бот запущен.")
-    executor.start_polling(dp, skip_updates=True)
+    logger.info("Бот запускается...")
+    asyncio.run(main())
