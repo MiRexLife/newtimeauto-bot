@@ -101,21 +101,21 @@ async def send_car_card(message, car):
         if car:
             photo_url = car.get('Фото')
             car_id = car.get('ID')
-                caption = (
-                    f"<b>Марка:</b> {car.get('Марка')}\n"
-                    f"<b>Модель:</b> {car.get('Модель')}\n"
-                    f"<b>Год:</b> {car.get('Год')}\n"
-                    f"<b>Объем:</b> {car.get('Объем')}\n"
-                    f"<b>Двигатель:</b> {car.get('Двигатель')}\n"
-                    f"<b>Привод:</b> {car.get('Привод')}\n"
-                    f"<b>Трансмиссия:</b> {car.get('Трансмиссия')}\n"
-                    f"<b>Цена, руб.:</b> {car.get('Цена, руб.')}\n"
-                    f"<b>Описание:</b> {car.get('Описание')}\n"
-                    f"<b>Арт.:</b> {car_id}"
-                )
-                keyboard = InlineKeyboardMarkup(row_width=1)
-                keyboard.add(InlineKeyboardButton("📩 Подробнее", url=f"https://t.me/newtimeauto_bot/app?startapp={car_id}"))
-                await message.answer_photo(photo=photo_url, caption=caption, parse_mode='HTML', reply_markup=keyboard)
+            caption = (
+                f"<b>Марка:</b> {car.get('Марка')}\n"
+                f"<b>Модель:</b> {car.get('Модель')}\n"
+                f"<b>Год:</b> {car.get('Год')}\n"
+                f"<b>Объем:</b> {car.get('Объем')}\n"
+                f"<b>Двигатель:</b> {car.get('Двигатель')}\n"
+                f"<b>Привод:</b> {car.get('Привод')}\n"
+                f"<b>Трансмиссия:</b> {car.get('Трансмиссия')}\n"
+                f"<b>Цена, руб.:</b> {car.get('Цена, руб.')}\n"
+                f"<b>Описание:</b> {car.get('Описание')}\n"
+                f"<b>Арт.:</b> {car_id}"
+            )
+            keyboard = InlineKeyboardMarkup(row_width=1)
+            keyboard.add(InlineKeyboardButton("📩 Подробнее", url=f"https://t.me/newtimeauto_bot/app?startapp={car_id}"))
+            await message.answer_photo(photo=photo_url, caption=caption, parse_mode='HTML', reply_markup=keyboard)
 
 """ async def cmd_start(message: types.Message):
     args = message.get_args() or ""
