@@ -116,7 +116,6 @@ async def send_car_card(message, car):
             keyboard = InlineKeyboardMarkup(row_width=1)
             keyboard.add(InlineKeyboardButton("📩 Подробнее", url=f"https://t.me/newtimeauto_bot/app?startapp={car_id}"))
             await message.answer_photo(photo=photo_url, caption=caption, parse_mode='HTML', reply_markup=keyboard)
-
 """ async def cmd_start(message: types.Message):
     args = message.get_args() or ""
     if args.startswith("id_"):
@@ -128,7 +127,7 @@ async def send_car_card(message, car):
             keyboard = InlineKeyboardMarkup().add(
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
-            await message.answer(f"Информация по выбранному авто:\n\n{car_info}", reply_markup=keyboard) """  
+            await message.answer(f"Информация по выбранному авто:\n\n{car_info}", reply_markup=keyboard) """
         else:
             await message.answer("Автомобиль с таким ID не найден 😕")
     else:
