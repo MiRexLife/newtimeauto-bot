@@ -93,14 +93,13 @@ def needs_manager(reply):
 
 # /start
 @dp.message_handler(commands=["start"])
-async def send_car_card(message, car):
+async def send_car_card(message: types.Message):
     args = message.get_args() or ""
     if args.startswith("id_"):
         car_id = args.replace("id_", "")
         car = get_car_by_id(car_id)
         if car:
             photo_url = car.get('Фото')
-            car_id = car.get('ID')
             caption = (
                 f"<b>Марка:</b> {car.get('Марка')}\n"
                 f"<b>Модель:</b> {car.get('Модель')}\n"
@@ -116,22 +115,10 @@ async def send_car_card(message, car):
             keyboard = InlineKeyboardMarkup(row_width=1)
             keyboard.add(InlineKeyboardButton("📩 Подробнее", url=f"https://t.me/newtimeauto_bot/app?startapp={car_id}"))
             await message.answer_photo(photo=photo_url, caption=caption, parse_mode='HTML', reply_markup=keyboard)
-""" async def cmd_start(message: types.Message):
-    args = message.get_args() or ""
-    if args.startswith("id_"):
-        car_id = args.replace("id_", "")
-        car = get_car_by_id(car_id)
-        if car:
-            car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
-            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📩 Подробнее", url=site_url)
-            )
-            await message.answer(f"Информация по выбранному авто:\n\n{car_info}", reply_markup=keyboard) """
         else:
             await message.answer("Автомобиль с таким ID не найден 😕")
     else:
-        catalog_url = f"https://t.me/newtimeauto_bot/app"
+        catalog_url = "https://t.me/newtimeauto_bot/app"
         keyboard = InlineKeyboardMarkup().add(
             InlineKeyboardButton("🚘 Открыть каталог", url=catalog_url)
         )
