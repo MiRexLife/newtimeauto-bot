@@ -156,15 +156,34 @@ async def handle_query(message: types.Message):
 
     matches = search_cars_by_keywords(user_query)
     if matches:
-        for car in matches:
-            car_info = "\n".join([f"{k}: {v}" for k, v in car.items()])
-            car_id = car.get("ID")
-            site_url = f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"
-            keyboard = InlineKeyboardMarkup().add(
-                InlineKeyboardButton("📩 Подробнее", url=site_url)
-            )
-            await message.answer(car_info, reply_markup=keyboard)
-        return
+    for car in matches:
+        photo_url = car.get('Фото')
+        car_id = car.get('ID')
+        caption = (
+            f"<b>Марка:</b> {car.get('Марка')}\n"
+            f"<b>Модель:</b> {car.get('Модель')}\n"
+            f"<b>Год:</b> {car.get('Год')}\n"
+            f"<b>Объем:</b> {car.get('Объем')}\n"
+            f"<b>Двигатель:</b> {car.get('Двигатель')}\n"
+            f"<b>Привод:</b> {car.get('Привод')}\n"
+            f"<b>Трансмиссия:</b> {car.get('Трансмиссия')}\n"
+            f"<b>Цена, руб.:</b> {car.get('Цена, руб.')}\n"
+            f"<b>Арт.:</b> {car_id}"
+        )
+
+        # Кнопки
+        keyboard = InlineKeyboardMarkup(row_width=1)
+        keyboard.add(
+            InlineKeyboardButton("📩 Подробнее", url=f"https://t.me/newtimeauto_bot/app?startapp=id_{car_id}"),
+            InlineKeyboardButton("✅ Забронировать", url=f"https://t.me/newtimeauto_sales?text=Хочу забронировать авто с ID {car_id}")
+        )
+
+        try:
+            await message.answer_photo(photo=photo_url, caption=caption, parse_mode='HTML', reply_markup=keyboard)
+        except Exception as e:
+            logger.error(f"Ошибка при отправке карточки: {e}")
+            await message.answer(caption, parse_mode='HTML', reply_markup=keyboard)
+    return
 
     try:
         history = chat_histories.get(user_id, [])
