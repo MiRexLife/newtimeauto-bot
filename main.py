@@ -125,8 +125,8 @@ async def send_car_card(message, car):
                 InlineKeyboardButton("📩 Подробнее", url=site_url)
             )
             await message.answer(f"Информация по выбранному авто:\n\n{car_info}", reply_markup=keyboard) """  
-        else:
-            await message.answer("Автомобиль с таким ID не найден 😕")
+    else:
+        await message.answer("Автомобиль с таким ID не найден 😕")
     else:
         catalog_url = f"https://t.me/newtimeauto_bot/app"
         keyboard = InlineKeyboardMarkup().add(
